@@ -22,7 +22,7 @@ import (
 
 var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision testing", func() {
 
-	ginkgo.When("create a namespace in karmada-apiserver", func() {
+	ginkgo.FWhen("create a namespace in karmada-apiserver", func() {
 		namespaceName := "karmada-e2e-ns-" + rand.String(3)
 		ginkgo.BeforeEach(func() {
 			ginkgo.By(fmt.Sprintf("Creating namespace: %s", namespaceName), func() {

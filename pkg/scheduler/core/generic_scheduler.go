@@ -51,12 +51,14 @@ func NewGenericScheduler(
 	}
 }
 
+// Schedule to get suggested cluster
 func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alpha1.Placement, spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
+	// get the snapshot(deep copy)
 	clusterInfoSnapshot := g.schedulerCache.Snapshot()
 	if clusterInfoSnapshot.NumOfClusters() == 0 {
 		return result, fmt.Errorf("no clusters available to schedule")
 	}
-
+	//fit => to choose the feasiable clusters
 	feasibleClusters, err := g.findClustersThatFit(ctx, g.scheduleFramework, placement, &spec.Resource, clusterInfoSnapshot)
 	if err != nil {
 		return result, fmt.Errorf("failed to findClustersThatFit: %v", err)
@@ -65,13 +67,13 @@ func (g *genericScheduler) Schedule(ctx context.Context, placement *policyv1alph
 		return result, fmt.Errorf("no clusters fit")
 	}
 	klog.V(4).Infof("feasible clusters found: %v", feasibleClusters)
-
+	// priority => to score all feasiable clustres
 	clustersScore, err := g.prioritizeClusters(ctx, g.scheduleFramework, placement, feasibleClusters)
 	if err != nil {
 		return result, fmt.Errorf("failed to prioritizeClusters: %v", err)
 	}
 	klog.V(4).Infof("feasible clusters scores: %v", clustersScore)
-
+	// 通过contraint将入参的
 	clusters := g.selectClusters(clustersScore, placement.SpreadConstraints, feasibleClusters)
 
 	clustersWithReplicas, err := g.assignReplicas(clusters, placement.ReplicaScheduling, spec)
@@ -131,9 +133,10 @@ func (g *genericScheduler) prioritizeClusters(
 	return result, nil
 }
 
+// selectClusters方法将资源尽可能分散到多个小组，从而实现应用高可用。
 func (g *genericScheduler) selectClusters(clustersScore framework.ClusterScoreList, spreadConstraints []policyv1alpha1.SpreadConstraint, clusters []*clusterv1alpha1.Cluster) []*clusterv1alpha1.Cluster {
 	defer metrics.ScheduleStep(metrics.ScheduleStepSelect, time.Now())
-
+	//spread constraint可以根据成员集群的某个属性（当前仅支持cluster、后续可能增加对成员集群region、zone、provider等属性支持）将集群联邦中的成员集群分为多个小组，也可以根据label将成员集群分为多个小组
 	if len(spreadConstraints) != 0 {
 		return g.matchSpreadConstraints(clusters, spreadConstraints)
 	}
@@ -203,6 +206,7 @@ func (g *genericScheduler) chooseSpreadGroup(spreadGroup *util.SpreadGroup) []*c
 	return feasibleClusters
 }
 
+// 为筛选出来的cluster分配replica，根据 ResourceBindingSpec
 func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, replicaSchedulingStrategy *policyv1alpha1.ReplicaSchedulingStrategy, object *workv1alpha2.ResourceBindingSpec) ([]workv1alpha2.TargetCluster, error) {
 	defer metrics.ScheduleStep(metrics.ScheduleStepAssignReplicas, time.Now())
 	if len(clusters) == 0 {
@@ -212,11 +216,13 @@ func (g *genericScheduler) assignReplicas(clusters []*clusterv1alpha1.Cluster, r
 
 	if object.Replicas > 0 && replicaSchedulingStrategy != nil {
 		switch replicaSchedulingStrategy.ReplicaSchedulingType {
+		//如果是'复制'模式，则让每个集群都拥有spec指定的replicas，也即总的replicas = len(clusters) * spec.replicas
 		case policyv1alpha1.ReplicaSchedulingTypeDuplicated:
 			for i, cluster := range clusters {
 				targetClusters[i] = workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: object.Replicas}
 			}
 			return targetClusters, nil
+		//如果是'切分'模式，则所有集群共同切分设定的replicas，也即总的replicas = spec.replicas
 		case policyv1alpha1.ReplicaSchedulingTypeDivided:
 			switch replicaSchedulingStrategy.ReplicaDivisionPreference {
 			case policyv1alpha1.ReplicaDivisionPreferenceWeighted:
