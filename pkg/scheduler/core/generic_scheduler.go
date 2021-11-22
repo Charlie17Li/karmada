@@ -292,6 +292,7 @@ func (g *genericScheduler) assignScaleReplicas(ctx context.Context, placement *p
 	return newTargetClusters, nil
 }
 
+// 当上次调度结果中的成员集群发生故障时，即rb.spec.clusters包含的成员集群状态不全都是就绪（ready
 func (g *genericScheduler) FailoverSchedule(ctx context.Context, placement *policyv1alpha1.Placement,
 	spec *workv1alpha2.ResourceBindingSpec) (result ScheduleResult, err error) {
 	readyClusters := g.schedulerCache.Snapshot().GetReadyClusterNames()
