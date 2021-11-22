@@ -20,6 +20,7 @@ import (
 	"github.com/karmada-io/karmada/test/helper"
 )
 
+//测试：没有修改的情况下，是否能够通过该测试
 var _ = ginkgo.Describe("[namespace auto-provision] namespace auto-provision testing", func() {
 
 	ginkgo.When("create a namespace in karmada-apiserver", func() {
