@@ -131,7 +131,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
-
+	//resource detector负责绑定用户创建的k8s原生API资源对象（包括CRD资源）和propagation policy
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:           discoverClientSet,
 		Client:                       mgr.GetClient(),
